@@ -1,0 +1,41 @@
+name: mcp-unified-server
+image: mcp/mcp-unified-server # This will be built by Docker
+type: server
+meta:
+  category: AI/ML
+  tags:
+    - AI
+    - ML
+    - Qdrant
+    - Embeddings
+  about:
+    title: MCP Unified Server with Qdrant
+    description: A unified MCP server leveraging Qdrant for vector search and embeddings.
+    icon: https://www.qdrant.com/images/logo.svg # Placeholder, replace with actual icon if available
+source:
+  project: https://github.com/your-org/mcp-unified-server # Replace with your actual GitHub repository
+config:
+  description: Configure the Qdrant connection and embedding provider settings.
+  secrets:
+    - name: qdrant.api_key
+      env: QDRANT_API_KEY
+      example: YOUR_QDRANT_API_KEY
+  env:
+    - name: QDRANT_HOST
+      example: localhost
+    - name: QDRANT_PORT
+      example: 6333
+    - name: EMBEDDING_MODEL
+      example: BAAI/bge-small-en-v1.5
+parameters:
+  type: object
+  properties:
+    qdrant_host:
+      type: string
+      description: Hostname for the Qdrant instance.
+    qdrant_port:
+      type: integer
+      description: Port for the Qdrant instance.
+    embedding_model:
+      type: string
+      description: Name of the embedding model to use.
