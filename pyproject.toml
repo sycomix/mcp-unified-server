@@ -1,0 +1,19 @@
+[project]
+name = "mcp-unified-server"
+version = "0.8.0"
+description = "Unified MCP server for various tools"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116.1",
+    "fastembed>=0.7.1",
+    "fastmcp>=2.10.5",
+    "playwright>=1.53.0",
+    "pydantic>=2.11.7",
+    "qdrant-client>=1.14.3",
+    "uvicorn>=0.35.0",
+]
+
+[project.scripts]
+mcp-unified-server = "mcp_server_qdrant.main:main"
+
