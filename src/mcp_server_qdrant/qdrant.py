@@ -2,11 +2,10 @@ import logging
 import uuid
 from typing import Any
 
-from pydantic import BaseModel
-from qdrant_client import AsyncQdrantClient, models
-
 from mcp_server_qdrant.embeddings.base import EmbeddingProvider
 from mcp_server_qdrant.settings import METADATA_PATH
+from pydantic import BaseModel
+from qdrant_client import AsyncQdrantClient, models
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +34,13 @@ class QdrantConnector:
     """
 
     def __init__(
-        self,
-        qdrant_url: str | None,
-        qdrant_api_key: str | None,
-        collection_name: str | None,
-        embedding_provider: EmbeddingProvider,
-        qdrant_local_path: str | None = None,
-        field_indexes: dict[str, models.PayloadSchemaType] | None = None,
+            self,
+            qdrant_url: str | None,
+            qdrant_api_key: str | None,
+            collection_name: str | None,
+            embedding_provider: EmbeddingProvider,
+            qdrant_local_path: str | None = None,
+            field_indexes: dict[str, models.PayloadSchemaType] | None = None,
     ):
         self._qdrant_url = qdrant_url.rstrip("/") if qdrant_url else None
         self._qdrant_api_key = qdrant_api_key
@@ -91,12 +90,12 @@ class QdrantConnector:
         )
 
     async def search(
-        self,
-        query: str,
-        *,
-        collection_name: str | None = None,
-        limit: int = 10,
-        query_filter: models.Filter | None = None,
+            self,
+            query: str,
+            *,
+            collection_name: str | None = None,
+            limit: int = 10,
+            query_filter: models.Filter | None = None,
     ) -> list[Entry]:
         """
         Find points in the Qdrant collection. If there are no entries found, an empty list is returned.

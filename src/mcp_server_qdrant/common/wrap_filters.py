@@ -2,14 +2,13 @@ import inspect
 from functools import wraps
 from typing import Annotated, Callable, Optional
 
-from pydantic import Field
-
 from mcp_server_qdrant.common.filters import make_filter
 from mcp_server_qdrant.settings import FilterableField
+from pydantic import Field
 
 
 def wrap_filters(
-    original_func: Callable, filterable_fields: dict[str, FilterableField]
+        original_func: Callable, filterable_fields: dict[str, FilterableField]
 ) -> Callable:
     """
     Wraps the original_func function: replaces `filter` parameter with multiple parameters defined by `filterable_fields`.
@@ -111,17 +110,19 @@ if __name__ == "__main__":
     from pydantic._internal._typing_extra import get_function_type_hints
     from qdrant_client import models
 
+
     def find(
-        query: Annotated[str, Field(description="What to search for")],
-        collection_name: Annotated[
-            str, Field(description="The collection to search in")
-        ],
-        query_filter: Optional[models.Filter] = None,
+            query: Annotated[str, Field(description="What to search for")],
+            collection_name: Annotated[
+                str, Field(description="The collection to search in")
+            ],
+            query_filter: Optional[models.Filter] = None,
     ) -> list[str]:
         print("query", query)
         print("collection_name", collection_name)
         print("query_filter", query_filter)
         return ["mypy rules"]
+
 
     wrapped_find = wrap_filters(
         find,

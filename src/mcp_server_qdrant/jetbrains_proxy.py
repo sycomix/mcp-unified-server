@@ -7,6 +7,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
 class JetBrainsProxy:
     def __init__(self, host: str = "127.0.0.1"):
         self.host = host
@@ -78,7 +79,7 @@ class JetBrainsProxy:
     async def _update_loop(self):
         await self.update_ide_endpoint()
         while True:
-            await asyncio.sleep(10) # Check every 10 seconds
+            await asyncio.sleep(10)  # Check every 10 seconds
             await self.update_ide_endpoint()
 
     async def list_tools(self) -> Dict[str, Any]:

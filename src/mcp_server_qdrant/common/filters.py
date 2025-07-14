@@ -1,13 +1,12 @@
 from typing import Any
 
-from qdrant_client import models
-
 from mcp_server_qdrant.qdrant import ArbitraryFilter
 from mcp_server_qdrant.settings import METADATA_PATH, FilterableField
+from qdrant_client import models
 
 
 def make_filter(
-    filterable_fields: dict[str, FilterableField], values: dict[str, Any]
+        filterable_fields: dict[str, FilterableField], values: dict[str, Any]
 ) -> ArbitraryFilter:
     must_conditions = []
     must_not_conditions = []
@@ -173,7 +172,7 @@ def make_filter(
 
 
 def make_indexes(
-    filterable_fields: dict[str, FilterableField],
+        filterable_fields: dict[str, FilterableField],
 ) -> dict[str, models.PayloadSchemaType]:
     indexes = {}
 

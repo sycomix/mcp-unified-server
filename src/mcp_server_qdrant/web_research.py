@@ -5,12 +5,13 @@ import os
 import re
 import shutil
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from playwright.async_api import Browser, Page, async_playwright
 
 logger = logging.getLogger(__name__)
+
 
 class WebResearchManager:
     def __init__(self):
@@ -50,7 +51,7 @@ class WebResearchManager:
         if not self.current_session["query"]:
             self.current_session["query"] = "Research Session"
         self.current_session["results"].append(result)
-        if len(self.current_session["results"]) > 100: # MAX_RESULTS_PER_SESSION
+        if len(self.current_session["results"]) > 100:  # MAX_RESULTS_PER_SESSION
             self.current_session["results"].pop(0)
         self.current_session["lastUpdated"] = self.get_current_timestamp()
 
@@ -225,7 +226,7 @@ class WebResearchManager:
             viewport = page.viewport_size
             if not viewport: continue
 
-            scale_factor = (0.75)**(attempts + 1)
+            scale_factor = (0.75) ** (attempts + 1)
             new_width = round(viewport["width"] * scale_factor)
             new_height = round(viewport["height"] * scale_factor)
 
@@ -247,10 +248,11 @@ class WebResearchManager:
         return buffer.base64().decode('utf-8')
 
     async def _save_screenshot(self, screenshot_base64: str, title: str) -> str:
-        buffer = screenshot_base64.encode('utf-8') # Already base64 encoded
+        buffer = screenshot_base64.encode('utf-8')  # Already base64 encoded
         MAX_SIZE = 5 * 1024 * 1024
         if len(buffer) > MAX_SIZE:
-            raise Exception(f"Screenshot too large: {round(len(buffer) / (1024 * 1024))}MB exceeds {MAX_SIZE / (1024 * 1024)}MB limit")
+            raise Exception(
+                f"Screenshot too large: {round(len(buffer) / (1024 * 1024))}MB exceeds {MAX_SIZE / (1024 * 1024)}MB limit")
 
         timestamp = self.get_current_timestamp()
         safe_title = re.sub(r'[^a-z0-9]', '_', title.lower())
@@ -258,7 +260,7 @@ class WebResearchManager:
         filepath = os.path.join(self.screenshots_dir, filename)
 
         with open(filepath, "wb") as f:
-            f.write(buffer) # Write bytes directly
+            f.write(buffer)  # Write bytes directly
         return filepath
 
     def _is_valid_url(self, url_string: str) -> bool:
@@ -271,12 +273,17 @@ class WebResearchManager:
     async def search_google(self, query: str) -> Dict[str, Any]:
         page = await self.ensure_browser()
         try:
-            results = await self._with_retry(async def():
+            results = await self._with_retry(async
+
+            def():
                 await self._safe_page_navigation(page, 'https://www.google.com')
                 await self._dismiss_google_consent(page)
 
-                await self._with_retry(async def():
-                    await page.wait_for_selector('input[name="q"], textarea[name="q"], input[type="text"]', timeout=5000)
+                await self._with_retry(async
+
+                def():
+                    await page.wait_for_selector('input[name="q"], textarea[name="q"], input[type="text"]',
+                                                 timeout=5000)
                     search_input = await page.query_selector('input[name="q"]') or \
                                    await page.query_selector('textarea[name="q"]') or \
                                    await page.query_selector('input[type="text"]')
@@ -285,13 +292,17 @@ class WebResearchManager:
                     await search_input.click(click_count=3)
                     await search_input.press('Backspace')
                     await search_input.type(query)
-                , retries=3, delay=2000)
 
-                async def _press_enter_and_wait():
+                , retries = 3, delay = 2000)
+
+                async
+
+                def _press_enter_and_wait():
                     await asyncio.gather(
                         page.keyboard.press('Enter'),
                         page.wait_for_load_state('networkidle', timeout=15000),
                     )
+
                 await self._with_retry(_press_enter_and_wait)
 
                 async def _get_search_results():
@@ -313,6 +324,7 @@ class WebResearchManager:
                     if not results_list:
                         raise Exception('No valid search results found')
                     return results_list
+
                 search_results = await self._with_retry(_get_search_results)
 
                 for result in search_results:
@@ -323,6 +335,7 @@ class WebResearchManager:
                         "timestamp": self.get_current_timestamp(),
                     })
                 return search_results
+
             })
             return {"content": [{"type": "text", "text": json.dumps(results, indent=2)}]}
         except Exception as e:
@@ -330,19 +343,26 @@ class WebResearchManager:
 
     async def visit_page(self, url: str, takeScreenshot: bool = False) -> Dict[str, Any]:
         if not self._is_valid_url(url):
-            return {"content": [{"type": "text", "text": f"Invalid URL: {url}. Only http and https protocols are supported."}], "isError": True}
+            return {"content": [
+                {"type": "text", "text": f"Invalid URL: {url}. Only http and https protocols are supported."}],
+                    "isError": True}
 
         page = await self.ensure_browser()
         try:
-            result = await self._with_retry(async def():
+            result = await self._with_retry(async
+
+            def():
                 await self._safe_page_navigation(page, url)
                 title = await page.title()
 
-                content = await self._with_retry(async def():
+                content = await self._with_retry(async
+
+                def():
                     extracted_content = await self._extract_content_as_markdown(page)
                     if not extracted_content:
                         raise Exception('Failed to extract content')
                     return extracted_content
+
                 })
 
                 page_result = {
@@ -355,19 +375,21 @@ class WebResearchManager:
                 screenshot_uri = None
                 if takeScreenshot:
                     screenshot_base64 = await self._take_screenshot_with_size_limit(page)
-                    page_result["screenshotPath"] = await self._save_screenshot(screenshot_base64, title)
-                    screenshot_uri = f"research://screenshots/{len(self.current_session['results'])}"
-                    # TODO: Notify clients about new screenshot resource
+                page_result["screenshotPath"] = await self._save_screenshot(screenshot_base64, title)
+                screenshot_uri = f"research://screenshots/{len(self.current_session['results'])}"
+                # TODO: Notify clients about new screenshot resource
 
                 self._add_result(page_result)
                 return {"pageResult": page_result, "screenshotUri": screenshot_uri}
+
             })
             return {"content": [{"type": "text", "text": json.dumps({
                 "url": result["pageResult"]["url"],
                 "title": result["pageResult"]["title"],
                 "content": result["pageResult"]["content"],
                 "timestamp": result["pageResult"]["timestamp"],
-                "screenshot": f"View screenshot via *MCP Resources* (Paperclip icon) @ URI: {result['screenshotUri']}" if result['screenshotUri'] else None
+                "screenshot": f"View screenshot via *MCP Resources* (Paperclip icon) @ URI: {result['screenshotUri']}" if
+                result['screenshotUri'] else None
             }, indent=2)}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Failed to visit page: {e}"}], "isError": True}
@@ -375,12 +397,16 @@ class WebResearchManager:
     async def take_screenshot(self) -> Dict[str, Any]:
         page = await self.ensure_browser()
         try:
-            screenshot_base64 = await self._with_retry(async def():
+            screenshot_base64 = await self._with_retry(async
+
+            def():
                 return await self._take_screenshot_with_size_limit(page)
+
             })
 
             if not self.current_session["query"]:
-                self.current_session = {"query": "Screenshot Session", "results": [], "lastUpdated": self.get_current_timestamp()}
+                self.current_session = {"query": "Screenshot Session", "results": [],
+                                        "lastUpdated": self.get_current_timestamp()}
 
             page_url = page.url
             page_title = await page.title()
@@ -389,80 +415,89 @@ class WebResearchManager:
 
             result_index = len(self.current_session['results'])
             self._add_result({
-                "url": page_url,
-                "title": page_title or "Untitled Page",
-                "content": "Screenshot taken",
-                "timestamp": self.get_current_timestamp(),
-                "screenshotPath": screenshot_path
-            })
+            "url": page_url,
+            "title": page_title or "Untitled Page",
+            "content": "Screenshot taken",
+            "timestamp": self.get_current_timestamp(),
+            "screenshotPath": screenshot_path
+        })
 
-            screenshot_uri = f"research://screenshots/{result_index}"
-            # TODO: Notify clients about new screenshot resource
+        screenshot_uri = f"research://screenshots/{result_index}"
+        # TODO: Notify clients about new screenshot resource
 
-            return {"content": [{"type": "text", "text": f"Screenshot taken successfully. You can view it via *MCP Resources* (Paperclip icon) @ URI: {screenshot_uri}"}]}
-        except Exception as e:
-            return {"content": [{"type": "text", "text": f"Failed to take screenshot: {e}"}], "isError": True}
+        return {"content": [{"type": "text",
+                             "text": f"Screenshot taken successfully. You can view it via *MCP Resources* (Paperclip icon) @ URI: {screenshot_uri}"}]}
 
-    async def _extract_content_as_markdown(self, page: Page, selector: Optional[str] = None) -> str:
-        html = await page.evaluate(f'''
+    except Exception as e:
+    return {"content": [{"type": "text", "text": f"Failed to take screenshot: {e}"}], "isError": True}
+
+
+async def _extract_content_as_markdown(self, page: Page, selector: Optional[str] = None) -> str:
+    html = await page.evaluate(f'''
             (sel) => {
                 if (sel) {
-                    const element = document.querySelector(sel);
-                    return element ? element.outerHTML : '';
-                }
-                const contentSelectors = [
-                    'main', 'article', '[role="main"]', '#content', '.content', '.main', '.post', '.article',
-                ];
-                for (const contentSelector of contentSelectors) {
-                    const element = document.querySelector(contentSelector);
-                    if (element) {
-                        return element.outerHTML;
-                    }
-                }
-                const body = document.body;
-                const elementsToRemove = [
-                    'header', 'footer', 'nav', '[role="navigation"]',
-                    'aside', '.sidebar', '[role="complementary"]',
-                    '.nav', '.menu',
-                    '.header', '.footer',
-                    '.advertisement', '.ads', '.cookie-notice',
-                ];
-                elementsToRemove.forEach(sel => {
-                    body.querySelectorAll(sel).forEach(el => el.remove());
-                });
-                return body.outerHTML;
-            }
-        ''', selector)
+                    const element =
+    document.querySelector(sel);
+    return element ? element.outerHTML: '';
+    }
+    const
+    contentSelectors = [
+    'main', 'article', '[role="main"]', '#content', '.content', '.main', '.post', '.article',
 
-        if not html:
-            return ''
+];
+for (const contentSelector of contentSelectors) {
+    const
+    element = document.querySelector(contentSelector);
+    if (element) {
+    return element.outerHTML;
+    }
+    }
+    const
+    body = document.body;
+    const
+    elementsToRemove = [
+        'header', 'footer', 'nav', '[role="navigation"]',
+        'aside', '.sidebar', '[role="complementary"]',
+        '.nav', '.menu',
+        '.header', '.footer',
+        '.advertisement', '.ads', '.cookie-notice',
+    ];
+    elementsToRemove.forEach(sel= > {
+    body.querySelectorAll(sel).forEach(el= > el.remove());
+    });
+    return body.outerHTML;
+}
+''', selector)
 
-        # This part would require a Python HTML to Markdown converter
-        # For now, returning raw HTML or a simplified version
-        # You would typically use a library like `markdownify` or `html2text` here
-        return html # Placeholder
+if not html:
+    return ''
 
-    def get_current_session_summary(self) -> Dict[str, Any]:
-        return {
-            "query": self.current_session["query"],
-            "resultCount": len(self.current_session["results"]),
-            "lastUpdated": self.current_session["lastUpdated"],
-            "results": [
-                {
-                    "title": r["title"],
-                    "url": r["url"],
-                    "timestamp": r["timestamp"],
-                    "screenshotPath": r.get("screenshotPath")
-                }
-                for r in self.current_session["results"]
-            ]
+# This part would require a Python HTML to Markdown converter
+# For now, returning raw HTML or a simplified version
+# You would typically use a library like `markdownify` or `html2text` here
+return html # Placeholder
+
+def get_current_session_summary(self) -> Dict[str, Any]:
+return {
+    "query": self.current_session["query"],
+    "resultCount": len(self.current_session["results"]),
+    "lastUpdated": self.current_session["lastUpdated"],
+    "results": [
+        {
+            "title": r["title"],
+            "url": r["url"],
+            "timestamp": r["timestamp"],
+            "screenshotPath": r.get("screenshotPath")
         }
+        for r in self.current_session["results"]
+    ]
+}
 
 def get_screenshot_data(self, index: int) -> bytes:
-    if not self.current_session or index < 0 or index >= len(self.current_session["results"]):
-        raise ValueError("Invalid screenshot index or no active session")
-    result = self.current_session["results"][index]
-    if not result.get("screenshotPath"):
-        raise ValueError("No screenshot available at this index")
-    with open(result["screenshotPath"], "rb") as f:
-        return f.read()
+if not self.current_session or index < 0 or index >= len(self.current_session["results"]):
+raise ValueError("Invalid screenshot index or no active session")
+result = self.current_session["results"][index]
+if not result.get("screenshotPath"):
+raise ValueError("No screenshot available at this index")
+with open(result["screenshotPath"], "rb") as f:
+return f.read()

@@ -1,8 +1,8 @@
 import json
 import os
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
-import uuid
+from typing import List, Dict, Any, Optional
+
 
 @dataclass
 class Task:
@@ -13,6 +13,7 @@ class Task:
     approved: bool = False
     completedDetails: str = ""
 
+
 @dataclass
 class RequestEntry:
     requestId: str
@@ -21,9 +22,11 @@ class RequestEntry:
     tasks: List[Task]
     completed: bool = False
 
+
 @dataclass
 class TaskManagerFile:
     requests: List[RequestEntry] = field(default_factory=list)
+
 
 class TaskManager:
     def __init__(self, file_path: str = None):
@@ -137,7 +140,8 @@ class TaskManager:
 
         return output
 
-    def request_planning(self, originalRequest: str, tasks: List[Dict[str, str]], splitDetails: Optional[str] = None) -> Dict[str, Any]:
+    def request_planning(self, originalRequest: str, tasks: List[Dict[str, str]], splitDetails: Optional[str] = None) -> \
+    Dict[str, Any]:
         self.load_tasks()
         self.request_counter += 1
         requestId = f"req-{self.request_counter}"
