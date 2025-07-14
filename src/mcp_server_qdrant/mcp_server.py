@@ -17,7 +17,7 @@ from mcp_server_qdrant.settings import (
     ToolSettings,
 )
 from mcp_server_qdrant.task_manager import TaskManager
-from mcp_server_qdrant.web_research import WebResearchManager
+from mcp_server_qdrant.web_research_fixed import WebResearchManager
 from mcp_server_qdrant.jetbrains_proxy import JetBrainsProxy
 
 logger = logging.getLogger(__name__)
