@@ -21,4 +21,7 @@ def main():
     # only after we make the changes.
     from mcp_server_qdrant.server import mcp
 
-    mcp.run(transport=args.transport)
+    if args.transport == "streamable-http":
+        mcp.run(transport=args.transport, host="0.0.0.0", port=8000)
+    else:
+        mcp.run(transport=args.transport)

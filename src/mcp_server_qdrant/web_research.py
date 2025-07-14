@@ -94,7 +94,7 @@ class WebResearchManager:
                     ];
                     return selectors.some(selector => document.querySelector(selector));
                 }
-            """)
+            """);
             if not has_consent:
                 return
 
@@ -109,7 +109,7 @@ class WebResearchManager:
                             'accetta tutto', 'accetto',
                             'aceitar tudo', 'concordo',
                             'alles accepteren', 'akkoord',
-                            'zaakceptuj wszystko', 'zgadzam się',
+                            'zaakceptuj wszystko', 'zgadzam zich',
                             'godkänn alla', 'godkänn',
                             'accepter alle', 'accepter',
                             'godta alle', 'godta',
@@ -198,7 +198,7 @@ class WebResearchManager:
                         title: document.title
                     };
                 }
-            """)
+            """);
 
             if validation["botProtection"]:
                 raise Exception('Bot protection detected')
@@ -206,7 +206,6 @@ class WebResearchManager:
                 raise Exception(f"Suspicious page title detected: \"{validation['title']}\"")
             if validation["wordCount"] < 10:
                 raise Exception('Page contains insufficient content')
-
         except Exception as e:
             raise Exception(f"Navigation to {url} failed: {e}")
 
@@ -288,14 +287,14 @@ class WebResearchManager:
                     await search_input.type(query)
                 , retries=3, delay=2000)
 
-                await self._with_retry(async def():
+                async def _press_enter_and_wait():
                     await asyncio.gather(
                         page.keyboard.press('Enter'),
                         page.wait_for_load_state('networkidle', timeout=15000),
                     )
-                })
+                await self._with_retry(_press_enter_and_wait)
 
-                search_results = await self._with_retry(async def():
+                async def _get_search_results():
                     elements = await page.query_selector_all('div.g')
                     if not elements:
                         raise Exception('No search results found')
@@ -304,7 +303,7 @@ class WebResearchManager:
                     for el in elements:
                         title_el = await el.query_selector('h3')
                         link_el = await el.query_selector('a')
-                        snippet_el = await el.query_selector('div.VwiC3b')
+                        snippet_el = await el.query.selector('div.VwiC3b')
 
                         if title_el and link_el and snippet_el:
                             title = await title_el.text_content()
@@ -314,7 +313,7 @@ class WebResearchManager:
                     if not results_list:
                         raise Exception('No valid search results found')
                     return results_list
-                })
+                search_results = await self._with_retry(_get_search_results)
 
                 for result in search_results:
                     self._add_result({
@@ -405,7 +404,7 @@ class WebResearchManager:
             return {"content": [{"type": "text", "text": f"Failed to take screenshot: {e}"}], "isError": True}
 
     async def _extract_content_as_markdown(self, page: Page, selector: Optional[str] = None) -> str:
-        html = await page.evaluate(f"""
+        html = await page.evaluate(f'''
             (sel) => {
                 if (sel) {
                     const element = document.querySelector(sel);
@@ -433,7 +432,7 @@ class WebResearchManager:
                 });
                 return body.outerHTML;
             }
-        """, selector)
+        ''', selector)
 
         if not html:
             return ''
@@ -459,11 +458,11 @@ class WebResearchManager:
             ]
         }
 
-    def get_screenshot_data(self, index: int) -> bytes:
-        if not self.current_session or index < 0 or index >= len(self.current_session["results"]):
-            raise ValueError("Invalid screenshot index or no active session")
-        result = self.current_session["results"][index]
-        if not result.get("screenshotPath"):
-            raise ValueError("No screenshot available at this index")
-        with open(result["screenshotPath"], "rb") as f:
-            return f.read()
+def get_screenshot_data(self, index: int) -> bytes:
+    if not self.current_session or index < 0 or index >= len(self.current_session["results"]):
+        raise ValueError("Invalid screenshot index or no active session")
+    result = self.current_session["results"][index]
+    if not result.get("screenshotPath"):
+        raise ValueError("No screenshot available at this index")
+    with open(result["screenshotPath"], "rb") as f:
+        return f.read()

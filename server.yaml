@@ -13,7 +13,7 @@ meta:
     description: A unified MCP server leveraging Qdrant for vector search and embeddings.
     icon: https://www.qdrant.com/images/logo.svg # Placeholder, replace with actual icon if available
 source:
-  project: https://github.com/your-org/mcp-unified-server # Replace with your actual GitHub repository
+  project: https://github.com/sycomix/mcp-unified-server.git
 config:
   description: Configure the Qdrant connection and embedding provider settings.
   secrets:
