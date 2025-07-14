@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir .
 EXPOSE 8000
 
 # Command to run the application using uvicorn
-CMD ["python", "-m", "uvicorn", "mcp_server_qdrant.server:mcp", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "mcp_server_qdrant.server:app", "--host", "0.0.0.0", "--port", "8000"]
