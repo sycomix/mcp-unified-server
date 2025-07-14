@@ -36,7 +36,8 @@ class WebResearchManager:
         if os.path.exists(self.screenshots_dir):
             shutil.rmtree(self.screenshots_dir)
 
-    async def _with_retry(self, operation, retries=3, delay=1000):
+    @staticmethod
+    async def _with_retry(operation, retries=3, delay=1000):
         last_error = None
         for i in range(retries):
             try:
@@ -55,11 +56,13 @@ class WebResearchManager:
             self.current_session["results"].pop(0)
         self.current_session["lastUpdated"] = self.get_current_timestamp()
 
-    def get_current_timestamp(self) -> str:
+    @staticmethod
+    def get_current_timestamp() -> str:
         import datetime
         return datetime.datetime.now().isoformat()
 
-    async def _dismiss_google_consent(self, page: Page):
+    @staticmethod
+    async def _dismiss_google_consent(page: Page):
         regions = [
             '.google.de', '.google.fr', '.google.co.uk',
             '.google.it', '.google.es', '.google.nl',
@@ -95,7 +98,7 @@ class WebResearchManager:
                     ];
                     return selectors.some(selector => document.querySelector(selector));
                 }
-            """);
+            """)
             if not has_consent:
                 return
 
@@ -152,7 +155,8 @@ class WebResearchManager:
         except Exception as e:
             logger.warning(f"Consent handling failed: {e}")
 
-    async def _safe_page_navigation(self, page: Page, url: str):
+    @staticmethod
+    async def _safe_page_navigation(page: Page, url: str):
         try:
             await page.context.add_cookies([{
                 'name': 'CONSENT',
@@ -199,7 +203,7 @@ class WebResearchManager:
                         title: document.title
                     };
                 }
-            """);
+            """)
 
             if validation["botProtection"]:
                 raise Exception('Bot protection detected')
@@ -209,43 +213,6 @@ class WebResearchManager:
                 raise Exception('Page contains insufficient content')
         except Exception as e:
             raise Exception(f"Navigation to {url} failed: {e}")
-
-    async def _take_screenshot_with_size_limit(self, page: Page) -> str:
-        MAX_SIZE = 5 * 1024 * 1024
-        MAX_DIMENSION = 1920
-        MIN_DIMENSION = 800
-
-        await page.set_viewport_size({"width": 1600, "height": 900})
-        screenshot_bytes = await page.screenshot(type="png", full_page=False)
-
-        buffer = screenshot_bytes
-        attempts = 0
-        MAX_ATTEMPTS = 3
-
-        while len(buffer) > MAX_SIZE and attempts < MAX_ATTEMPTS:
-            viewport = page.viewport_size
-            if not viewport: continue
-
-            scale_factor = (0.75) ** (attempts + 1)
-            new_width = round(viewport["width"] * scale_factor)
-            new_height = round(viewport["height"] * scale_factor)
-
-            new_width = max(MIN_DIMENSION, min(MAX_DIMENSION, new_width))
-            new_height = max(MIN_DIMENSION, min(MAX_DIMENSION, new_height))
-
-            await page.set_viewport_size({"width": new_width, "height": new_height})
-            screenshot_bytes = await page.screenshot(type="png", full_page=False)
-            buffer = screenshot_bytes
-            attempts += 1
-
-        if len(buffer) > MAX_SIZE:
-            await page.set_viewport_size({"width": MIN_DIMENSION, "height": MIN_DIMENSION})
-            screenshot_bytes = await page.screenshot(type="png", full_page=False)
-            buffer = screenshot_bytes
-            if len(buffer) > MAX_SIZE:
-                raise Exception("Failed to reduce screenshot to under 5MB even with minimum settings")
-
-        return buffer.base64().decode('utf-8')
 
     async def _save_screenshot(self, screenshot_base64: str, title: str) -> str:
         buffer = screenshot_base64.encode('utf-8')  # Already base64 encoded
@@ -263,7 +230,8 @@ class WebResearchManager:
             f.write(buffer)  # Write bytes directly
         return filepath
 
-    def _is_valid_url(self, url_string: str) -> bool:
+    @staticmethod
+    def _is_valid_url(url_string: str) -> bool:
         try:
             result = urlparse(url_string)
             return result.scheme in ['http', 'https']
@@ -273,15 +241,11 @@ class WebResearchManager:
     async def search_google(self, query: str) -> Dict[str, Any]:
         page = await self.ensure_browser()
         try:
-            results = await self._with_retry(async
-
-            def():
+            async def search_operation():
                 await self._safe_page_navigation(page, 'https://www.google.com')
                 await self._dismiss_google_consent(page)
 
-                await self._with_retry(async
-
-                def():
+                async def input_search():
                     await page.wait_for_selector('input[name="q"], textarea[name="q"], input[type="text"]',
                                                  timeout=5000)
                     search_input = await page.query_selector('input[name="q"]') or \
@@ -293,11 +257,9 @@ class WebResearchManager:
                     await search_input.press('Backspace')
                     await search_input.type(query)
 
-                , retries = 3, delay = 2000)
+                await self._with_retry(input_search, retries=3, delay=2000)
 
-                async
-
-                def _press_enter_and_wait():
+                async def _press_enter_and_wait():
                     await asyncio.gather(
                         page.keyboard.press('Enter'),
                         page.wait_for_load_state('networkidle', timeout=15000),
@@ -314,7 +276,7 @@ class WebResearchManager:
                     for el in elements:
                         title_el = await el.query_selector('h3')
                         link_el = await el.query_selector('a')
-                        snippet_el = await el.query.selector('div.VwiC3b')
+                        snippet_el = await el.query_selector('div.VwiC3b')
 
                         if title_el and link_el and snippet_el:
                             title = await title_el.text_content()
@@ -336,7 +298,7 @@ class WebResearchManager:
                     })
                 return search_results
 
-            })
+            results = await self._with_retry(search_operation)
             return {"content": [{"type": "text", "text": json.dumps(results, indent=2)}]}
         except Exception as e:
             return {"content": [{"type": "text", "text": f"Failed to perform search: {e}"}], "isError": True}
@@ -349,21 +311,17 @@ class WebResearchManager:
 
         page = await self.ensure_browser()
         try:
-            result = await self._with_retry(async
-
-            def():
+            async def visit_operation():
                 await self._safe_page_navigation(page, url)
                 title = await page.title()
 
-                content = await self._with_retry(async
-
-                def():
+                async def extract_content():
                     extracted_content = await self._extract_content_as_markdown(page)
                     if not extracted_content:
                         raise Exception('Failed to extract content')
                     return extracted_content
 
-                })
+                content = await self._with_retry(extract_content)
 
                 page_result = {
                     "url": url,
@@ -374,15 +332,15 @@ class WebResearchManager:
 
                 screenshot_uri = None
                 if takeScreenshot:
-                    screenshot_base64 = await self._take_screenshot_with_size_limit(page)
-                page_result["screenshotPath"] = await self._save_screenshot(screenshot_base64, title)
-                screenshot_uri = f"research://screenshots/{len(self.current_session['results'])}"
-                # TODO: Notify clients about new screenshot resource
+                    screenshot_base64 = await _take_screenshot_with_size_limit(page)
+                    page_result["screenshotPath"] = await self._save_screenshot(screenshot_base64, title)
+                    screenshot_uri = f"research://screenshots/{len(self.current_session['results'])}"
+                    # TODO: Notify clients about new screenshot resource
 
                 self._add_result(page_result)
                 return {"pageResult": page_result, "screenshotUri": screenshot_uri}
 
-            })
+            result = await self._with_retry(visit_operation)
             return {"content": [{"type": "text", "text": json.dumps({
                 "url": result["pageResult"]["url"],
                 "title": result["pageResult"]["title"],
@@ -397,12 +355,10 @@ class WebResearchManager:
     async def take_screenshot(self) -> Dict[str, Any]:
         page = await self.ensure_browser()
         try:
-            screenshot_base64 = await self._with_retry(async
+            async def screenshot_operation():
+                return await _take_screenshot_with_size_limit(page)
 
-            def():
-                return await self._take_screenshot_with_size_limit(page)
-
-            })
+            screenshot_base64 = await self._with_retry(screenshot_operation)
 
             if not self.current_session["query"]:
                 self.current_session = {"query": "Screenshot Session", "results": [],
@@ -415,89 +371,121 @@ class WebResearchManager:
 
             result_index = len(self.current_session['results'])
             self._add_result({
-            "url": page_url,
-            "title": page_title or "Untitled Page",
-            "content": "Screenshot taken",
-            "timestamp": self.get_current_timestamp(),
-            "screenshotPath": screenshot_path
-        })
+                "url": page_url,
+                "title": page_title or "Untitled Page",
+                "content": "Screenshot taken",
+                "timestamp": self.get_current_timestamp(),
+                "screenshotPath": screenshot_path
+            })
 
-        screenshot_uri = f"research://screenshots/{result_index}"
-        # TODO: Notify clients about new screenshot resource
+            screenshot_uri = f"research://screenshots/{result_index}"
+            # TODO: Notify clients about new screenshot resource
 
-        return {"content": [{"type": "text",
-                             "text": f"Screenshot taken successfully. You can view it via *MCP Resources* (Paperclip icon) @ URI: {screenshot_uri}"}]}
+            return {"content": [{"type": "text",
+                                 "text": f"Screenshot taken successfully. You can view it via *MCP Resources* (Paperclip icon) @ URI: {screenshot_uri}"}]}
 
-    except Exception as e:
-    return {"content": [{"type": "text", "text": f"Failed to take screenshot: {e}"}], "isError": True}
+        except Exception as e:
+            return {"content": [{"type": "text", "text": f"Failed to take screenshot: {e}"}], "isError": True}
 
+    @staticmethod
+    async def _extract_content_as_markdown(page: Page, selector: Optional[str] = None) -> str:
+        html = await page.evaluate(f'''
+                (sel) => {{
+                    if (sel) {{
+                        const element = document.querySelector(sel);
+                        return element ? element.outerHTML : '';
+                    }}
+                    const contentSelectors = [
+                        'main', 'article', '[role="main"]', '#content', '.content', '.main', '.post', '.article',
+                    ];
+                    for (const contentSelector of contentSelectors) {{
+                        const element = document.querySelector(contentSelector);
+                        if (element) {{
+                            return element.outerHTML;
+                        }}
+                    }}
+                    const body = document.body;
+                    const elementsToRemove = [
+                        'header', 'footer', 'nav', '[role="navigation"]',
+                        'aside', '.sidebar', '[role="complementary"]',
+                        '.nav', '.menu',
+                        '.header', '.footer',
+                        '.advertisement', '.ads', '.cookie-notice',
+                    ];
+                    elementsToRemove.forEach(sel => {{
+                        body.querySelectorAll(sel).forEach(el => el.remove());
+                    }});
+                    return body.outerHTML;
+                }}
+            ''', selector)
 
-async def _extract_content_as_markdown(self, page: Page, selector: Optional[str] = None) -> str:
-    html = await page.evaluate(f'''
-            (sel) => {
-                if (sel) {
-                    const element =
-    document.querySelector(sel);
-    return element ? element.outerHTML: '';
-    }
-    const
-    contentSelectors = [
-    'main', 'article', '[role="main"]', '#content', '.content', '.main', '.post', '.article',
+        if not html:
+            return ''
 
-];
-for (const contentSelector of contentSelectors) {
-    const
-    element = document.querySelector(contentSelector);
-    if (element) {
-    return element.outerHTML;
-    }
-    }
-    const
-    body = document.body;
-    const
-    elementsToRemove = [
-        'header', 'footer', 'nav', '[role="navigation"]',
-        'aside', '.sidebar', '[role="complementary"]',
-        '.nav', '.menu',
-        '.header', '.footer',
-        '.advertisement', '.ads', '.cookie-notice',
-    ];
-    elementsToRemove.forEach(sel= > {
-    body.querySelectorAll(sel).forEach(el= > el.remove());
-    });
-    return body.outerHTML;
-}
-''', selector)
+        # This part would require a Python HTML to Markdown converter
+        # For now, returning raw HTML or a simplified version
+        # You would typically use a library like `markdownify` or `html2text` here
+        return html  # Placeholder
 
-if not html:
-    return ''
-
-# This part would require a Python HTML to Markdown converter
-# For now, returning raw HTML or a simplified version
-# You would typically use a library like `markdownify` or `html2text` here
-return html # Placeholder
-
-def get_current_session_summary(self) -> Dict[str, Any]:
-return {
-    "query": self.current_session["query"],
-    "resultCount": len(self.current_session["results"]),
-    "lastUpdated": self.current_session["lastUpdated"],
-    "results": [
-        {
-            "title": r["title"],
-            "url": r["url"],
-            "timestamp": r["timestamp"],
-            "screenshotPath": r.get("screenshotPath")
+    def get_current_session_summary(self) -> Dict[str, Any]:
+        return {
+            "query": self.current_session["query"],
+            "resultCount": len(self.current_session["results"]),
+            "lastUpdated": self.current_session["lastUpdated"],
+            "results": [
+                {
+                    "title": r["title"],
+                    "url": r["url"],
+                    "timestamp": r["timestamp"],
+                    "screenshotPath": r.get("screenshotPath")
+                }
+                for r in self.current_session["results"]
+            ]
         }
-        for r in self.current_session["results"]
-    ]
-}
 
-def get_screenshot_data(self, index: int) -> bytes:
-if not self.current_session or index < 0 or index >= len(self.current_session["results"]):
-raise ValueError("Invalid screenshot index or no active session")
-result = self.current_session["results"][index]
-if not result.get("screenshotPath"):
-raise ValueError("No screenshot available at this index")
-with open(result["screenshotPath"], "rb") as f:
-return f.read()
+    def get_screenshot_data(self, index: int) -> bytes:
+        if not self.current_session or index < 0 or index >= len(self.current_session["results"]):
+            raise ValueError("Invalid screenshot index or no active session")
+        result = self.current_session["results"][index]
+        if not result.get("screenshotPath"):
+            raise ValueError("No screenshot available at this index")
+        with open(result["screenshotPath"], "rb") as f:
+            return f.read()
+
+
+async def _take_screenshot_with_size_limit(page: Page) -> str:
+    MAX_SIZE = 5 * 1024 * 1024
+    MAX_DIMENSION = 1920
+    MIN_DIMENSION = 800
+
+    await page.set_viewport_size({"width": 1600, "height": 900})
+    screenshot_bytes = await page.screenshot(type="png", full_page=False)
+
+    buffer = screenshot_bytes
+    attempts = 0
+    MAX_ATTEMPTS = 3
+
+    while len(buffer) > MAX_SIZE and attempts < MAX_ATTEMPTS:
+        viewport = page.viewport_size
+        if not viewport: continue
+
+        scale_factor = 0.75 ** (attempts + 1)
+        new_width = round(viewport["width"] * scale_factor)
+        new_height = round(viewport["height"] * scale_factor)
+
+        new_width = max(MIN_DIMENSION, min(MAX_DIMENSION, new_width))
+        new_height = max(MIN_DIMENSION, min(MAX_DIMENSION, new_height))
+
+        await page.set_viewport_size({"width": new_width, "height": new_height})
+        screenshot_bytes = await page.screenshot(type="png", full_page=False)
+        buffer = screenshot_bytes
+        attempts += 1
+
+    if len(buffer) > MAX_SIZE:
+        await page.set_viewport_size({"width": MIN_DIMENSION, "height": MIN_DIMENSION})
+        screenshot_bytes = await page.screenshot(type="png", full_page=False)
+        buffer = screenshot_bytes
+        if len(buffer) > MAX_SIZE:
+            raise Exception("Failed to reduce screenshot to under 5MB even with minimum settings")
+
+    return buffer.base64().decode('utf-8')

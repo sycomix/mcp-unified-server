@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Annotated, Any, List, Dict, Optional
@@ -15,7 +16,7 @@ from mcp_server_qdrant.settings import (
     ToolSettings,
 )
 from mcp_server_qdrant.task_manager import TaskManager
-from mcp_server_qdrant.web_research_fixed import WebResearchManager
+from mcp_server_qdrant.web_research import WebResearchManager
 from pydantic import Field
 from qdrant_client import models
 
@@ -59,7 +60,6 @@ class QdrantMCPServer(FastMCP):
 
         self.setup_tools()
         self.setup_resources()
-        asyncio.create_task(self.jetbrains_proxy.start_update_scheduler())  # Start the scheduler
 
     def format_entry(self, entry: Entry) -> str:
         """
@@ -392,7 +392,7 @@ class QdrantMCPServer(FastMCP):
 
     def setup_resources(self):
         @self.resource(
-            uri_pattern="research://current/summary",
+            "research://current/summary",
             name="Current Research Session Summary",
             description="Summary of the current research session including queries and results",
             mime_type="application/json"
@@ -401,7 +401,7 @@ class QdrantMCPServer(FastMCP):
             return self.web_research_manager.get_current_session_summary()
 
         @self.resource(
-            uri_pattern="research://screenshots/{index}",
+            "research://screenshots/{index}",
             name="Screenshot",
             description="Screenshot taken during web research",
             mime_type="image/png"
